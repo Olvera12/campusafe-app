@@ -231,4 +231,5 @@ a[title="Report errors in the road map or imagery to Google"] { display: none !i
 .btn-login:hover { background: #3498db; }
 .btn-logout { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px;}
 .profile-header-flex { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-#map { filter: invert(0) !important; }
+#map { filter: none !important; }
+.gm-style, .gm-style img, .gm-style canvas { filter: none !important; -webkit-filter: none !important; }
