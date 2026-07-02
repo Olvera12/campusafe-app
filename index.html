@@ -322,6 +322,7 @@
             if (status === "OK") {
               panorama.setPano(data.location.pano);
               panorama.setPov({ heading: 270, pitch: 0 });
+               panorama.setVisible(true);
               activeVerifyReportId = null;
               document.getElementById('back-btn').style.display = 'flex';
               document.getElementById('dev-legend').style.display = 'block';
