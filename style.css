@@ -233,3 +233,8 @@ a[title="Report errors in the road map or imagery to Google"] { display: none !i
 .profile-header-flex { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 #map { filter: none !important; }
 .gm-style, .gm-style img, .gm-style canvas { filter: none !important; -webkit-filter: none !important; }
+
+/* Parche para el error de facturación de Google Maps (For development purposes only) */
+.gm-err-container, .gm-err-content, .gm-err-title, .gm-err-message, .dismissButton { display: none !important; }
+div[style*="z-index: 100"][style*="pointer-events: none"] { display: none !important; }
+.gm-style-bg { opacity: 0 !important; background: transparent !important; }
