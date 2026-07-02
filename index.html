@@ -523,10 +523,18 @@
 
     async function submitVote(type) {
       if (!activeVerifyReportId) return;
-      await db.updateReportVotes(activeVerifyReportId, type);
+      if (type !== 'skip') {
+          await db.updateReportVotes(activeVerifyReportId, type);
+      }
       document.getElementById('modal-vote').style.display = 'none';
       
       forceExitStreetView();
+      
+      if (pendingTabSwitch) {
+          const target = pendingTabSwitch;
+          pendingTabSwitch = null;
+          switchTab(target);
+      }
     }
     
 
@@ -575,7 +583,16 @@
       checkVerifications(); // Checkear verificaciones si ya hay sesión activa
     }
 
+    let pendingTabSwitch = null;
+
     function switchTab(tab) {
+      // Si el usuario está viendo un reporte (Street View) e intenta cambiar de pestaña
+      if (activeVerifyReportId) {
+        pendingTabSwitch = tab;
+        document.getElementById('modal-vote').style.display = 'flex';
+        return; // Detiene el cambio de pestaña hasta que vote
+      }
+
       if (viewingMarker3D) { viewingMarker3D.setMap(null); viewingMarker3D = null; }
       activeVerifyReportId = null;
       document.getElementById('sao-menu').style.display = 'none';
