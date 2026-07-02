@@ -46,6 +46,10 @@
       <i data-lucide="arrow-left" color="#fff"></i> Volver al Mapa
     </div>
 
+    <div id="dev-legend" style="display: none; position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: rgba(255,255,255,0.85); padding: 6px 14px; border-radius: 20px; font-size: 11px; z-index: 100; backdrop-filter: blur(4px); text-align: center; pointer-events: none; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: 500;">
+      <i data-lucide="info" style="width: 12px; height: 12px; display: inline-block; margin-bottom: -2px; margin-right: 2px;"></i> Filtros visuales activos por licencia de prueba Google
+    </div>
+
     <div id="map"></div>
 
     <!-- MENÚ SAO RADIAL -->
@@ -318,8 +322,9 @@
             if (status === "OK") {
               panorama.setPano(data.location.pano);
               panorama.setPov({ heading: 270, pitch: 0 });
-              panorama.setVisible(true);
+              activeVerifyReportId = null;
               document.getElementById('back-btn').style.display = 'flex';
+              document.getElementById('dev-legend').style.display = 'block';
             } else {
               alert("No hay vista de calle aquí. Toca más cerca de una avenida.");
             }
@@ -452,6 +457,7 @@
       document.getElementById('add-modal-desc').value = '';
       map.getStreetView().setVisible(false);
       document.getElementById('back-btn').style.display = 'none';
+      document.getElementById('dev-legend').style.display = 'none';
       alert(`¡Reporte publicado!`);
     }
 
@@ -495,6 +501,7 @@
         panorama.setPov({ heading: heading, pitch: -15 });
         panorama.setVisible(true);
         document.getElementById('back-btn').style.display = 'flex';
+        document.getElementById('dev-legend').style.display = 'block';
         
         // Poner marcador físico 3D con forma de PUNTITO AMARILLO (SAO) en las coordenadas exactas del asfalto
         if(viewingMarker3D) viewingMarker3D.setMap(null);
@@ -626,6 +633,7 @@
       }
       map.getStreetView().setVisible(false);
       document.getElementById('back-btn').style.display = 'none';
+      document.getElementById('dev-legend').style.display = 'none';
       closeMenu();
     }
 
