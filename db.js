@@ -91,8 +91,19 @@ class FimeDatabase {
     // addDoc: Guardar reporte en la nube
     async addReport(reportData) {
         const user = this.getCurrentUser();
+        
+        // CIBERSEGURIDAD Y ESTABILIDAD: Firebase rechaza objetos complejos de Google Maps.
+        // Sanitizamos los datos geográficos a texto plano JSON:
+        const parseLatLng = (pos) => {
+            if (!pos) return null;
+            if (typeof pos.lat === 'function') return { lat: pos.lat(), lng: pos.lng() };
+            return { lat: pos.lat, lng: pos.lng };
+        };
+
         const newReport = {
             ...reportData,
+            location: parseLatLng(reportData.location),
+            cameraPosition: parseLatLng(reportData.cameraPosition),
             status: 'active',
             timestamp: Date.now(),
             userId: user ? user.matricula : 'anonimo'
