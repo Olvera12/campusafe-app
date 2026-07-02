@@ -1,0 +1,83 @@
+body, html { 
+    margin: 0; padding: 0; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    background: #f4f6f8; color: #2c3e50; 
+}
+
+.login-view { 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    height: 100vh; background: #fff; 
+}
+.login-view input { 
+    width: 320px; padding: 15px; margin-bottom: 15px; border: 1px solid #bdc3c7; 
+    border-radius: 8px; font-size: 16px; outline: none; transition: 0.2s;
+}
+.login-view input:focus { border-color: #3498db; box-shadow: 0 0 5px rgba(52,152,219,0.5); }
+.login-view button { 
+    width: 320px; background: #2980b9; color: white; padding: 15px; border: none; 
+    border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.2s;
+}
+.login-view button:hover { background: #3498db; }
+
+#dashboard-container { display: flex; height: 100vh; overflow: hidden; }
+
+/* Menú Lateral */
+.sidebar { 
+    width: 260px; background: #2c3e50; color: white; 
+    display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+}
+.sidebar h2 { padding: 25px 20px; margin: 0; background: #1a252f; text-align: center; font-size: 22px; letter-spacing: 1px;}
+.sidebar nav { display: flex; flex-direction: column; padding: 20px 0; }
+.sidebar nav a { 
+    padding: 15px 25px; color: #bdc3c7; text-decoration: none; 
+    display: flex; align-items: center; gap: 12px; font-size: 15px; transition: 0.2s;
+}
+.sidebar nav a:hover, .sidebar nav a.active { 
+    background: #34495e; color: #fff; border-left: 4px solid #3498db; 
+}
+
+/* Área Principal */
+.main-content { flex: 1; padding: 40px; overflow-y: auto; }
+header { margin-bottom: 40px; }
+header h1 { margin: 0; font-size: 32px; color: #1a252f; }
+header p { margin: 8px 0 0 0; color: #7f8c8d; font-size: 16px; }
+
+/* KPI Cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; margin-bottom: 40px; }
+.kpi-card { 
+    background: white; border-radius: 12px; padding: 25px; 
+    display: flex; align-items: center; gap: 20px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #ecf0f1;
+}
+.icon-bg {
+    width: 60px; height: 60px; border-radius: 15px; 
+    display: flex; align-items: center; justify-content: center;
+}
+.icon-bg i { width: 30px; height: 30px; }
+.kpi-info h3 { margin: 0; font-size: 36px; color: #2c3e50; line-height: 1; margin-bottom: 5px; }
+.kpi-info p { margin: 0; color: #7f8c8d; font-weight: 500; font-size: 14px; }
+
+/* Tabla de Reportes */
+.reports-table-section { 
+    background: white; border-radius: 12px; padding: 30px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #ecf0f1;
+}
+.reports-table { width: 100%; border-collapse: collapse; }
+.reports-table th, .reports-table td { padding: 18px 15px; text-align: left; border-bottom: 1px solid #f4f6f8; }
+.reports-table th { color: #95a5a6; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+.reports-table tr:hover { background-color: #fdfdfd; }
+.reports-table td { font-size: 14px; color: #34495e; vertical-align: middle; }
+
+/* Elementos UI de la tabla */
+.btn-resolve { 
+    background: #2ecc71; color: white; border: none; padding: 8px 15px; 
+    border-radius: 6px; cursor: pointer; font-weight: bold; 
+    display: inline-flex; align-items: center; gap: 6px; transition: 0.2s; font-size: 13px;
+}
+.btn-resolve:hover { background: #27ae60; box-shadow: 0 2px 5px rgba(46,204,113,0.4); }
+.btn-resolve i { width: 14px; height: 14px; }
+
+.badge { 
+    padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; 
+    color: white; display: inline-flex; align-items: center; justify-content: center;
+}

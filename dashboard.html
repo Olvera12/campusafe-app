@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampuSafe - Panel Universitario</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="db.js"></script>
+</head>
+<body>
+  <div id="login-container" class="login-view">
+      <i data-lucide="shield" style="width:64px; height:64px; color:#2980b9; margin-bottom: 20px;"></i>
+      <h2 style="margin-bottom:5px;">Centro de Control Universitario</h2>
+      <p style="color:#7f8c8d; margin-bottom: 30px;">Inicia sesión con cuenta de autoridad (ej. admin)</p>
+      <input type="text" id="admin-user" placeholder="ID Institucional">
+      <input type="password" id="admin-pass" placeholder="Contraseña">
+      <button onclick="adminLogin()">Acceder al Sistema</button>
+  </div>
+
+  <div id="dashboard-container" style="display:none;">
+      <aside class="sidebar">
+          <h2>CampuSafe</h2>
+          <nav>
+              <a href="#" class="active"><i data-lucide="layout-dashboard"></i> Resumen en Vivo</a>
+              <a href="#" onclick="simularEntorno()" style="color: #f39c12;"><i data-lucide="flask-conical"></i> Modo Sandbox</a>
+              <a href="#" onclick="logout()"><i data-lucide="log-out"></i> Cerrar Sesión</a>
+          </nav>
+      </aside>
+      
+      <main class="main-content">
+          <header style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                  <h1>Panel de Control de Incidentes</h1>
+                  <p>Monitoreo en tiempo real del campus y vialidades aledañas.</p>
+              </div>
+              <button onclick="exportToExcel()" class="btn-resolve" style="background: #27ae60; font-size: 15px; padding: 12px 20px;">
+                  <i data-lucide="file-spreadsheet"></i> Exportar Excel
+              </button>
+          </header>
+          
+          <section class="kpi-grid">
+              <div class="kpi-card">
+                  <div class="icon-bg" style="background:#fdebd0; color:#e67e22;"><i data-lucide="alert-triangle"></i></div>
+                  <div class="kpi-info">
+                      <h3 id="kpi-active">0</h3>
+                      <p>Problemas Activos</p>
+                  </div>
+              </div>
+              <div class="kpi-card">
+                  <div class="icon-bg" style="background:#d5f5e3; color:#27ae60;"><i data-lucide="check-circle"></i></div>
+                  <div class="kpi-info">
+                      <h3 id="kpi-resolved">0</h3>
+                      <p>Solucionados (Histórico)</p>
+                  </div>
+              </div>
+              <div class="kpi-card">
+                  <div class="icon-bg" style="background:#d6eaf8; color:#2980b9;"><i data-lucide="bar-chart-2"></i></div>
+                  <div class="kpi-info">
+                      <h3 id="kpi-total">0</h3>
+                      <p>Total de Reportes</p>
+                  </div>
+              </div>
+          </section>
+
+          <section class="reports-table-section">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                  <h2 style="margin:0; font-size:20px; color:#2c3e50;">Incidentes Reportados por Alumnos</h2>
+                  <span style="font-size:12px; color:#7f8c8d; display:flex; align-items:center; gap:5px;"><i data-lucide="radio" style="width:14px; color:#2ecc71;"></i> Conexión en vivo</span>
+              </div>
+              <table class="reports-table">
+                  <thead>
+                      <tr>
+                          <th>Tipo</th>
+                          <th>Descripción</th>
+                          <th>Reportado a las</th>
+                          <th>Confirmaciones</th>
+                          <th>Acción de Autoridad</th>
+                      </tr>
+                  </thead>
+                  <tbody id="table-body">
+                      <!-- Renderizado dinámico -->
+                  </tbody>
+              </table>
+          <section class="heatmap-section" style="margin-top: 40px; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #ecf0f1;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                  <h2 style="margin:0; font-size:20px; color:#2c3e50;">Mapa de Calor (Inteligencia de Riesgos)</h2>
+                  <span style="font-size:12px; color:#7f8c8d;">Basado en historial completo</span>
+              </div>
+              <div id="heatmap-container" style="width: 100%; height: 400px; border-radius: 8px; overflow: hidden; background: #ecf0f1;">
+                  <!-- Mapa de Google renderizado aquí -->
+              </div>
+          </section>
+      </main>
+  </div>
+  
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDd6loC0VjAeccz_XfH8ew2r2VODyhkODo&libraries=visualization&callback=initDashboardMap" async defer></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
