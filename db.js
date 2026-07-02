@@ -1,48 +1,34 @@
 // db.js - Capa de Abstracción de Base de Datos para CampuSafe
-// Arquitectura preparada para migrar a Firebase (Firestore) cambiando solo el interior de estas funciones.
-// Actualmente usa LocalStorage avanzado para permitir demostraciones inmediatas sin configuración de API Keys,
-// e incluye sincronización en tiempo real entre múltiples pestañas.
+// CONECTADO A FIREBASE FIRESTORE EN LA NUBE
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDNWFlw67z4VgE2JHy0P7FKbNvYkaau1CQ",
+  authDomain: "campusafe-f6833.firebaseapp.com",
+  projectId: "campusafe-f6833",
+  storageBucket: "campusafe-f6833.firebasestorage.app",
+  messagingSenderId: "276929341900",
+  appId: "1:276929341900:web:b7df93ab877658af649569",
+  measurementId: "G-DE28FF10XL"
+};
+
+// Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const firestore = firebase.firestore();
 
 class FimeDatabase {
     constructor() {
         this.listeners = [];
-        this.initMockDB();
-        
-        // Sincronización "Tiempo Real" simulada para cuando abres el dashboard y la app al mismo tiempo
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'fime_reports') this._notifyListeners();
-        });
-        
-        // Fallback de "Tiempo Real" para navegadores bloqueando eventos storage en archivos locales (file:///)
-        if (window.location.protocol === 'file:') {
-            let lastData = localStorage.getItem('fime_reports');
-            setInterval(() => {
-                const currentData = localStorage.getItem('fime_reports');
-                if (currentData !== lastData) {
-                    lastData = currentData;
-                    this._notifyListeners();
-                }
-            }, 1000);
-        }
-    }
-
-    initMockDB() {
-        if (!localStorage.getItem('fime_reports')) {
-            localStorage.setItem('fime_reports', JSON.stringify([]));
-        }
-        if (!localStorage.getItem('fime_users')) {
-            localStorage.setItem('fime_users', JSON.stringify([]));
-        }
+        // Eliminado MockDB (LocalStorage), todo es la Nube.
     }
 
     // ==========================================
-    // AUTENTICACIÓN (Preparado para Firebase Auth)
+    // AUTENTICACIÓN (Sesión persistente)
     // ==========================================
     async login(matricula, password) {
         return new Promise((resolve, reject) => {
             const userId = matricula.toLowerCase().trim();
-            
-            // Bypass para cuentas administrativas o demos locales
             const isSpecialAccount = userId === 'admin' || userId === 'rector' || !userId.includes('@');
             
             if (!isSpecialAccount && !userId.endsWith('@uanl.edu.mx')) {
@@ -50,18 +36,10 @@ class FimeDatabase {
                 return;
             }
             
-            let users = JSON.parse(localStorage.getItem('fime_users'));
-            let user = users.find(u => u.matricula === userId);
-            
-            // Auto-registro para el prototipo
-            if (!user) {
-                user = { 
-                    matricula: userId, 
-                    role: (userId === 'admin' || userId === 'rector') ? 'admin' : 'student' 
-                };
-                users.push(user);
-                localStorage.setItem('fime_users', JSON.stringify(users));
-            }
+            let user = { 
+                matricula: userId, 
+                role: (userId === 'admin' || userId === 'rector') ? 'admin' : 'student' 
+            };
             
             localStorage.setItem('fime_current_user', JSON.stringify(user));
             resolve(user);
@@ -78,73 +56,86 @@ class FimeDatabase {
     }
 
     // ==========================================
-    // FIRESTORE ABSTRACTION (Base de Datos)
+    // FIRESTORE ABSTRACTION (Base de Datos Real)
     // ==========================================
     
-    // onSnapshot: Escucha cambios en tiempo real
+    // onSnapshot: Escucha cambios en tiempo real desde la Nube de Google
     onReportsSnapshot(callback) {
         this.listeners.push(callback);
-        this._notifyListeners();
-    }
+        
+        firestore.collection("reports")
+            .where("status", "!=", "resolved") // Filtro 1 de Firebase (Ahorro de lectura de datos)
+            .onSnapshot((snapshot) => {
+                const activeReports = [];
+                const now = Date.now();
+                const EIGHT_HOURS = 8 * 60 * 60 * 1000;
 
-    _notifyListeners() {
-        const reports = JSON.parse(localStorage.getItem('fime_reports')) || [];
-        const now = Date.now();
-        const EIGHT_HOURS = 8 * 60 * 60 * 1000;
-        
-        const activeReports = reports.filter(r => {
-            if (r.status === 'resolved' || r.status === 'resuelto') return false;
-            
-            // Auto-caducidad: Tráfico o Calle Cerrada desaparecen después de 8 horas
-            if ((r.type === 'trafico' || r.type === 'cerrada') && (now - r.timestamp > EIGHT_HOURS)) {
-                return false;
-            }
-            return true;
-        });
-        
-        this.listeners.forEach(cb => cb(activeReports));
+                snapshot.forEach((doc) => {
+                    const r = { id: doc.id, ...doc.data() };
+                    
+                    // Filtro 2 (Auto-caducidad)
+                    if ((r.type === 'trafico' || r.type === 'cerrada') && (now - r.timestamp > EIGHT_HOURS)) {
+                        // Se ignora, no se empuja a la vista de los estudiantes
+                    } else {
+                        activeReports.push(r);
+                    }
+                });
+                
+                this.listeners.forEach(cb => cb(activeReports));
+            }, (error) => {
+                console.error("Error de Seguridad en Firestore: ", error);
+                // NOTA: Si fallan los permisos de Firestore Rules, el error caerá aquí.
+            });
     }
 
     // addDoc: Guardar reporte en la nube
     async addReport(reportData) {
-        return new Promise((resolve) => {
-            const reports = JSON.parse(localStorage.getItem('fime_reports'));
-            const user = this.getCurrentUser();
-            const newReport = {
-                ...reportData,
-                id: Date.now().toString(),
-                status: 'active',
-                timestamp: Date.now(),
-                userId: user ? user.matricula : 'anonimo'
-            };
-            reports.push(newReport);
-            localStorage.setItem('fime_reports', JSON.stringify(reports));
-            this._notifyListeners();
-            resolve(newReport);
-        });
+        const user = this.getCurrentUser();
+        const newReport = {
+            ...reportData,
+            status: 'active',
+            timestamp: Date.now(),
+            userId: user ? user.matricula : 'anonimo'
+        };
+        
+        try {
+            const docRef = await firestore.collection("reports").add(newReport);
+            newReport.id = docRef.id;
+            return newReport;
+        } catch(e) {
+            console.error("Error añadiendo reporte: ", e);
+            throw e;
+        }
     }
 
-    // updateDoc: Votar
+    // updateDoc: Votar con incrementos atómicos para concurrencia
     async updateReportVotes(reportId, voteType) {
-        const reports = JSON.parse(localStorage.getItem('fime_reports'));
-        const index = reports.findIndex(r => r.id === reportId);
-        if (index > -1) {
-            if (voteType === 'yes') reports[index].votesYes++;
-            else if (voteType === 'no') reports[index].votesNo++;
-            localStorage.setItem('fime_reports', JSON.stringify(reports));
-            this._notifyListeners();
+        const reportRef = firestore.collection("reports").doc(reportId);
+        try {
+            if (voteType === 'yes') {
+                await reportRef.update({
+                    votesYes: firebase.firestore.FieldValue.increment(1)
+                });
+            } else if (voteType === 'no') {
+                await reportRef.update({
+                    votesNo: firebase.firestore.FieldValue.increment(1)
+                });
+            }
+        } catch(e) {
+            console.error("Error votando: ", e);
         }
     }
 
     // updateDoc: Resolver problema (Dashboard Universitario)
     async resolveReport(reportId) {
-        const reports = JSON.parse(localStorage.getItem('fime_reports'));
-        const index = reports.findIndex(r => r.id === reportId);
-        if (index > -1) {
-            reports[index].status = 'resolved';
-            reports[index].resolvedAt = Date.now();
-            localStorage.setItem('fime_reports', JSON.stringify(reports));
-            this._notifyListeners();
+        const reportRef = firestore.collection("reports").doc(reportId);
+        try {
+            await reportRef.update({
+                status: 'resolved',
+                resolvedAt: Date.now()
+            });
+        } catch(e) {
+            console.error("Error resolviendo reporte: ", e);
         }
     }
 
@@ -153,43 +144,63 @@ class FimeDatabase {
     // ==========================================
     
     async getReportsPendingVerification(userId) {
-        const reports = JSON.parse(localStorage.getItem('fime_reports')) || [];
-        const now = Date.now();
-        const EIGHT_HOURS = 8 * 60 * 60 * 1000;
-        
-        return reports.filter(r => {
-            return r.userId === userId &&
-                   r.status !== 'resolved' && r.status !== 'resuelto' &&
-                   (r.type === 'trafico' || r.type === 'cerrada') &&
-                   (now - r.timestamp > EIGHT_HOURS);
-        });
-    }
-
-    async renewReport(reportId) {
-        const reports = JSON.parse(localStorage.getItem('fime_reports')) || [];
-        const index = reports.findIndex(r => r.id === reportId);
-        if (index > -1) {
-            reports[index].timestamp = Date.now(); // Reiniciar el reloj
-            localStorage.setItem('fime_reports', JSON.stringify(reports));
-            this._notifyListeners();
+        try {
+            const snapshot = await firestore.collection("reports")
+                .where("userId", "==", userId)
+                .where("status", "in", ["active", "activo"]) // Evitamos pedir verificar los resueltos
+                .get();
+                
+            const pending = [];
+            const now = Date.now();
+            const EIGHT_HOURS = 8 * 60 * 60 * 1000;
+            
+            snapshot.forEach(doc => {
+                const r = { id: doc.id, ...doc.data() };
+                if ((r.type === 'trafico' || r.type === 'cerrada') && (now - r.timestamp > EIGHT_HOURS)) {
+                    pending.push(r);
+                }
+            });
+            return pending;
+        } catch(e) {
+            console.error("Error obteniendo pendientes: ", e);
+            return [];
         }
     }
 
-    // getDocs: Para analíticas del Dashboard
-    async getAnalytics() {
-        const reports = JSON.parse(localStorage.getItem('fime_reports')) || [];
-        const active = reports.filter(r => r.status !== 'resolved').length;
-        const resolved = reports.filter(r => r.status === 'resolved').length;
-        
-        const typeCount = {};
-        reports.forEach(r => {
-            typeCount[r.type] = (typeCount[r.type] || 0) + 1;
-        });
+    async renewReport(reportId) {
+        const reportRef = firestore.collection("reports").doc(reportId);
+        try {
+            await reportRef.update({
+                timestamp: Date.now() // Reiniciar el reloj
+            });
+        } catch(e) {
+            console.error("Error renovando reporte: ", e);
+        }
+    }
 
-        // Simular latencia de red para realismo
-        return new Promise(resolve => setTimeout(() => {
-            resolve({ total: reports.length, active, resolved, typeCount, allReports: reports });
-        }, 300));
+    // getDocs: Para analíticas del Dashboard Institucional (Heatmap y Excel)
+    async getAnalytics() {
+        try {
+            const snapshot = await firestore.collection("reports").get();
+            let total = 0, active = 0, resolved = 0;
+            const typeCount = {};
+            const allReports = [];
+
+            snapshot.forEach(doc => {
+                const r = { id: doc.id, ...doc.data() };
+                allReports.push(r);
+                total++;
+                if (r.status === 'resolved' || r.status === 'resuelto') resolved++;
+                else active++;
+                
+                typeCount[r.type] = (typeCount[r.type] || 0) + 1;
+            });
+
+            return { total, active, resolved, typeCount, allReports };
+        } catch(e) {
+            console.error("Error en Analytics: ", e);
+            return { total:0, active:0, resolved:0, typeCount:{}, allReports: [] };
+        }
     }
 }
 

@@ -6,6 +6,11 @@
   <title>CampuSafe - UANL</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
+  
+  <!-- Firebase SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  
   <script src="db.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -645,7 +650,7 @@
                 <span><i data-lucide="thumbs-up" style="width:14px;"></i> ${report.votesYes} Sigue ahí</span>
                 <span><i data-lucide="thumbs-down" style="width:14px;"></i> ${report.votesNo} Ya no</span>
               </div>
-              <button class="btn-view-map" onclick="openViewReportModal(${report.id})">
+              <button class="btn-view-map" onclick="openViewReportModal('${report.id}')">
                 <i data-lucide="map-pin" style="width:16px;"></i> Ver Detalles
               </button>
             </div>
