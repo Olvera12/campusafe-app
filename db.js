@@ -26,27 +26,36 @@ class FimeDatabase {
     // ==========================================
     // AUTENTICACIÓN (Sesión persistente)
     // ==========================================
+    async ensureAuth() {
+        if (this.authReady) return this.authReady;
+        this.authReady = new Promise((resolve, reject) => {
+            const off = firebase.auth().onAuthStateChanged(user => {
+                off();
+                if (user) resolve(user);
+                else firebase.auth().signInAnonymously().then(c => resolve(c.user), reject);
+            }, reject);
+        }).catch(error => { this.authReady = null; throw error; });
+        return this.authReady;
+    }
+
     async login(matricula, password) {
-        return new Promise((resolve, reject) => {
-            const userId = matricula.toLowerCase().trim();
-            const isSpecialAccount = userId === 'admin' || userId === 'rector' || !userId.includes('@');
-            
-            if (!isSpecialAccount && !userId.endsWith('@uanl.edu.mx')) {
-                reject("Solo se permiten correos institucionales de la UANL (@uanl.edu.mx)");
-                return;
-            }
-            
-            let user = { 
-                matricula: userId, 
-                role: (userId === 'admin' || userId === 'rector') ? 'admin' : 'student' 
-            };
-            
-            localStorage.setItem('fime_current_user', JSON.stringify(user));
-            resolve(user);
-        });
+        const label = matricula.toLowerCase().trim();
+        if (!label) throw new Error('Ingresa tu correo o matrícula.');
+        if (label === 'admin' || label === 'rector') {
+            throw new Error('El administrador debe acceder con una cuenta Firebase autorizada, no con un nombre de usuario.');
+        }
+        if (label.includes('@') && !label.endsWith('@uanl.edu.mx')) {
+            throw new Error('Solo se permiten correos institucionales de la UANL (@uanl.edu.mx).');
+        }
+        const identity = await this.ensureAuth();
+        const user = { matricula: label, uid: identity.uid, role: 'student' };
+        // La matrícula es una etiqueta del perfil, no una identidad institucional verificada.
+        localStorage.setItem('fime_current_user', JSON.stringify(user));
+        return user;
     }
 
     logout() {
+        // Conservamos la sesión visitante para que mapa y feed sigan funcionando.
         localStorage.removeItem('fime_current_user');
     }
 
@@ -60,37 +69,46 @@ class FimeDatabase {
     // ==========================================
     
     // onSnapshot: Escucha cambios en tiempo real desde la Nube de Google
-    onReportsSnapshot(callback) {
-        this.listeners.push(callback);
-        
-        firestore.collection("reports")
-            .where("status", "!=", "resolved") // Filtro 1 de Firebase (Ahorro de lectura de datos)
-            .onSnapshot((snapshot) => {
-                const activeReports = [];
-                const now = Date.now();
-                const EIGHT_HOURS = 8 * 60 * 60 * 1000;
-
-                snapshot.forEach((doc) => {
-                    const r = { id: doc.id, ...doc.data() };
-                    
-                    // Filtro 2 (Auto-caducidad)
-                    if ((r.type === 'trafico' || r.type === 'cerrada') && (now - r.timestamp > EIGHT_HOURS)) {
-                        // Se ignora, no se empuja a la vista de los estudiantes
-                    } else {
-                        activeReports.push(r);
-                    }
+    onReportsSnapshot(callback, onError = error => this.showError(error)) {
+        let off = null;
+        let cancelled = false;
+        this.ensureAuth().then(() => {
+            if (cancelled) return;
+            off = firestore.collection('reports').onSnapshot(snapshot => {
+                const active = [];
+                snapshot.forEach(doc => {
+                    const r = { ...doc.data(), id: doc.id };
+                    if (['resolved', 'resuelto'].includes(r.status)) return;
+                    if (!r.location || !Number.isFinite(r.location.lat) || !Number.isFinite(r.location.lng)) return;
+                    // Conservamos reportes históricos; la caducidad se gestiona en verificación.
+                    active.push(r);
                 });
-                
-                this.listeners.forEach(cb => cb(activeReports));
-            }, (error) => {
-                console.error("Error de Seguridad en Firestore: ", error);
-                // NOTA: Si fallan los permisos de Firestore Rules, el error caerá aquí.
-            });
+                callback(active);
+            }, onError);
+        }).catch(onError);
+        return () => { cancelled = true; if (off) off(); };
+    }
+
+    showError(error) {
+        console.error('Campusafe:', error);
+        const message = error.code === 'permission-denied'
+            ? 'Firebase no permite cargar o guardar los reportes. Revisa las reglas de acceso.'
+            : 'No se pudo conectar con los reportes. Comprueba tu conexión e intenta de nuevo.';
+        let notice = document.getElementById('database-error');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'database-error';
+            notice.setAttribute('role', 'alert');
+            notice.style.cssText = 'position:fixed;top:12px;left:12px;right:12px;z-index:10000;padding:12px;background:#401820;color:#fff;border-radius:8px';
+            document.body.appendChild(notice);
+        }
+        notice.textContent = message;
     }
 
     // addDoc: Guardar reporte en la nube
     async addReport(reportData) {
         const user = this.getCurrentUser();
+        const identity = await this.ensureAuth();
         
         // CIBERSEGURIDAD Y ESTABILIDAD: Firebase rechaza objetos complejos de Google Maps.
         // Sanitizamos los datos geográficos a texto plano JSON:
@@ -106,7 +124,8 @@ class FimeDatabase {
             cameraPosition: parseLatLng(reportData.cameraPosition),
             status: 'active',
             timestamp: Date.now(),
-            userId: user ? user.matricula : 'anonimo'
+            userId: user ? user.matricula : 'anonimo',
+            ownerUid: identity.uid
         };
         
         try {
@@ -121,6 +140,7 @@ class FimeDatabase {
 
     // updateDoc: Votar con incrementos atómicos para concurrencia
     async updateReportVotes(reportId, voteType) {
+        await this.ensureAuth();
         const reportRef = firestore.collection("reports").doc(reportId);
         try {
             if (voteType === 'yes') {
@@ -139,6 +159,7 @@ class FimeDatabase {
 
     // updateDoc: Resolver problema (Dashboard Universitario)
     async resolveReport(reportId) {
+        await this.ensureAuth();
         const reportRef = firestore.collection("reports").doc(reportId);
         try {
             await reportRef.update({
@@ -155,10 +176,11 @@ class FimeDatabase {
     // ==========================================
     
     async getReportsPendingVerification(userId) {
+        await this.ensureAuth();
         try {
             const snapshot = await firestore.collection("reports")
-                .where("userId", "==", userId)
-                .where("status", "in", ["active", "activo"]) // Evitamos pedir verificar los resueltos
+                .where("ownerUid", "==", firebase.auth().currentUser.uid)
+                 // Evitamos pedir verificar los resueltos
                 .get();
                 
             const pending = [];
@@ -167,7 +189,7 @@ class FimeDatabase {
             
             snapshot.forEach(doc => {
                 const r = { id: doc.id, ...doc.data() };
-                if ((r.type === 'trafico' || r.type === 'cerrada') && (now - r.timestamp > EIGHT_HOURS)) {
+                if (!['resolved', 'resuelto'].includes(r.status) && (['trafico', 'tráfico', 'cerrada', 'bloqueo'].includes(String(r.type).toLowerCase())) && (now - r.timestamp > EIGHT_HOURS)) {
                     pending.push(r);
                 }
             });
@@ -179,6 +201,7 @@ class FimeDatabase {
     }
 
     async renewReport(reportId) {
+        await this.ensureAuth();
         const reportRef = firestore.collection("reports").doc(reportId);
         try {
             await reportRef.update({
@@ -191,6 +214,7 @@ class FimeDatabase {
 
     // getDocs: Para analíticas del Dashboard Institucional (Heatmap y Excel)
     async getAnalytics() {
+        await this.ensureAuth();
         try {
             const snapshot = await firestore.collection("reports").get();
             let total = 0, active = 0, resolved = 0;

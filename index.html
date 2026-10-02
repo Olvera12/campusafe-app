@@ -9,6 +9,7 @@
   
   <!-- Firebase SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   
   <script src="db.js"></script>
@@ -271,7 +272,7 @@
     }
 
     function createMapMarker(report) {
-      const config = reportIcons[report.type];
+      const config = reportIcons[report.type] || reportIcons['Bache'];
       const markerDiv = document.createElement('div');
       markerDiv.className = `custom-map-marker marker-${report.type}`;
       markerDiv.innerHTML = `<i data-lucide="${config.icon}"></i>`;
@@ -444,6 +445,9 @@
     async function submitReport() {
       const desc = document.getElementById('add-modal-desc').value.trim() || "Sin detalles adicionales.";
       
+      if (window.reportSubmitting) return;
+      window.reportSubmitting = true;
+      try {
       await db.addReport({
         type: currentReportType,
         desc: desc,
@@ -460,6 +464,10 @@
       document.getElementById('back-btn').style.display = 'none';
       document.getElementById('dev-legend').style.display = 'none';
       alert(`¡Reporte publicado!`);
+      } catch (error) {
+        db.showError(error);
+        alert("No se publicó el reporte. Tus datos siguen en el formulario; intenta nuevamente.");
+      } finally { window.reportSubmitting = false; }
     }
 
     function openViewReportModal(reportId) {
@@ -471,7 +479,7 @@
       document.getElementById('view-modal-desc').innerText = `"${report.desc}" \n\n (Votos: ${report.votesYes} Sí / ${report.votesNo} No)`;
       document.getElementById('view-modal-time').innerText = "Reportado a las " + report.time;
       
-      const config = reportIcons[report.type];
+      const config = reportIcons[report.type] || reportIcons['Bache'];
       document.getElementById('view-modal-icon').setAttribute('data-lucide', config.icon);
       document.getElementById('view-modal-icon').setAttribute('color', config.color);
       lucide.createIcons();
@@ -660,7 +668,7 @@
 
       const sorted = [...filtered].reverse();
       sorted.forEach(report => {
-        const config = reportIcons[report.type];
+        const config = reportIcons[report.type] || reportIcons['Bache'];
         const card = document.createElement('div');
         card.className = `report-card type-${report.type}`;
         card.innerHTML = `
